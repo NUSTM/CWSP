@@ -68,7 +68,7 @@ Dict, Feat, Model and Prob:
 	├── model
 	│   ├── Dict
 	│   ├── Feat
-  |   ├── Model
+	|   ├── Model
 	│   └── Prob
 
 Dict stores dictionary informations for CWSP. And it should be given before start training a segmenter.
