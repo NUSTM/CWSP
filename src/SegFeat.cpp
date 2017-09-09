@@ -17,58 +17,39 @@ namespace cwsp
     SegFeat::SegFeat()
     {
         _unigram = new Vocab;
-        _bigram = new Vocab;
-        _trigram = new Vocab;
-        _dict = new Vocab;
+        _dict = new SegDict;
+        _char_type = new CharType;
         _modifiable = true;
     }
     
     SegFeat::~SegFeat()
     {
         delete _unigram;
-        delete _bigram;
-        delete _trigram;
         delete _dict;
+        delete _char_type;
     }
     
     int SegFeat::GetUnigramIndex(const char *feat)
     {
-        return this->_unigram->GetIndex(feat);
+        if(_modifiable){
+            return this->_unigram->GetAndInsertIndex(feat);
+        }
+        else{
+            return this->_unigram->GetIndex(feat);
+        }
     }
 
-    int SegFeat::GetBigramIndex(const char *feat)
-    {
-        return this->_bigram->GetIndex(feat);
+    bool SegFeat::LoadDictFile(const char * DictFileName) {
+        return _dict->LoadDictFile(DictFileName);
     }
 
-    int SegFeat::GetTrigramIndex(const char *feat)
-    {
-        return this->_trigram->GetIndex(feat);
-    }
-
-    int SegFeat::GetDictIndex(const char *feat)
-    {
-        return this->_dict->GetIndex(feat);
+    bool SegFeat::LoadCharFile(bool is_bin) {
+        return _char_type->Initialize(is_bin);
     }
 
     int SegFeat::InsertUnigramFeat(const char *feat)
     {
         return this->_unigram->GetAndInsertIndex(feat);
-    }
-    
-    int SegFeat::InsertBigramFeat(const char *feat)
-    {
-        return this->_bigram->GetAndInsertIndex(feat);
-    }
-
-    int SegFeat::InsertTrigramFeat(const char *feat)
-    {
-        return this->_trigram->GetAndInsertIndex(feat);
-    }
-
-    int SegFeat::InsertDictFeat(const char *feat)
-    {
-        return this->_dict->GetAndInsertIndex(feat);
     }
 
     bool SegFeat::LoadFeatureFile(const char *FeatureFileName)
@@ -103,18 +84,6 @@ namespace cwsp
             cerr << "Does not have any feature in Unigram."<<endl;
             return false;
         }
-        if( ( _bigram==NULL ) || (_bigram->size()<=0) )
-        {
-            cerr << "\nSegFeat ERROR" << endl;
-            cerr << "Does not have any feature in Bigram."<<endl;
-            return false;
-        }
-        if( ( _trigram==NULL ) || (_trigram->size()<=0) )
-        {
-            cerr << "\nSegFeat ERROR" << endl;
-            cerr << "Does not have any feature in Trigram."<<endl;
-            return false;
-        }
 #ifdef WIN32
         string _datapath = "model\\";
 #else
@@ -130,27 +99,6 @@ namespace cwsp
         fwrite(unigramHeader.data(), unigramHeader.length(), 1, FeatureFile);
         fwrite(unigramSize.data(), unigramSize.length(), 1, FeatureFile);
         _unigram->WriteVocabText(FeatureFile);
-
-        // write bigram feature
-        string bigramSize = toString(_bigram->size()) + '\n';
-        string bigramHeader = "#BigramFeature\n"; 
-        fwrite(bigramHeader.data(), bigramHeader.length(), 1, FeatureFile);
-        fwrite(bigramSize.data(), bigramSize.length(), 1, FeatureFile);
-        _bigram->WriteVocabText(FeatureFile);
-
-        // write trigram feature
-        string trigramSize = toString(_trigram->size()) + '\n';
-        string trigramHeader = "#TrigramFeature\n"; 
-        fwrite(trigramHeader.data(), trigramHeader.length(), 1, FeatureFile);
-        fwrite(trigramSize.data(), trigramSize.length(), 1, FeatureFile);
-        _trigram->WriteVocabText(FeatureFile);
-
-        // write dict feature
-        string dictSize = toString(_dict->size()) + '\n';
-        string dictHeader = "#DictFeature\n"; 
-        fwrite(dictHeader.data(), dictHeader.length(), 1, FeatureFile);
-        fwrite(dictSize.data(), dictSize.length(), 1, FeatureFile);
-        _dict->WriteVocabText(FeatureFile);
 
         fclose(FeatureFile);
         std::cout<<"SegFeat file have been saved.\n";
@@ -171,13 +119,7 @@ namespace cwsp
         string myTextLine;
         vector<string> tmp;
         delete this->_unigram;
-        delete this->_bigram;
-        delete this->_trigram;
-        delete this->_dict;
-        this->_bigram = new Vocab;
         this->_unigram = new Vocab;
-        this->_trigram = new Vocab;
-        this->_dict = new Vocab;
 
         // UnigramFeature
         getline(fin, myTextLine);  // skip the first line
@@ -192,45 +134,7 @@ namespace cwsp
             int index = fromString<int>(tmp.back());
             this->_unigram->InserWordAndIndex(feat, index);
         }
-        // BigramFeature
-        getline(fin, myTextLine);
-        getline(fin, myTextLine);
-        int bigramSize = fromString<int>(myTextLine);
-        for(int i=0; i<bigramSize; i++)
-        {
-            getline(fin, myTextLine);
-            TrimLine(myTextLine);
-            tmp = string_split(myTextLine, " ");
-            string feat = tmp.front();
-            int index = fromString<int>(tmp.back());
-            this->_bigram->InserWordAndIndex(feat, index);
-        }
-        //TrigramFeature
-        getline(fin, myTextLine);
-        getline(fin, myTextLine);
-        int trigramSize = fromString<int>(myTextLine);
-        for(int i=0; i<trigramSize; i++)
-        {
-            getline(fin, myTextLine);
-            TrimLine(myTextLine);
-            tmp = string_split(myTextLine, " ");
-            string feat = tmp.front();
-            int index = fromString<int>(tmp.back());
-            this->_trigram->InserWordAndIndex(feat, index);
-        }
-        // DitcFeature
-        getline(fin, myTextLine);
-        getline(fin, myTextLine);
-        int dictSize = fromString<int>(myTextLine);
-        for(int i=0; i<dictSize; i++)
-        {
-            getline(fin, myTextLine);
-            TrimLine(myTextLine);
-            tmp = string_split(myTextLine, " ");
-            string feat = tmp.front();
-            int index = fromString<int>(tmp.back());
-            this->_dict->InserWordAndIndex(feat, index);
-        }
+
         fin.close();
         return true;
     }
@@ -249,14 +153,11 @@ namespace cwsp
         fread(&headBuf, g_Header_Len, 1, FeatureFile);
         string header = string(headBuf, g_Header_Len);
 
-		delete this->_unigram;
-        delete this->_bigram;
-        delete this->_trigram;
-        this->_bigram = new Vocab;
+        delete this->_unigram;
         this->_unigram = new Vocab;
-        this->_trigram = new Vocab;
 
-        int unigramSize, bigramSize, trigramSize, dictSize;
+        // int unigramSize, bigramSize, trigramSize, dictSize;
+        int unigramSize;
         fread(&unigramSize, sizeof(int), 1, FeatureFile);
         int index, unit;
         string word;
@@ -270,38 +171,6 @@ namespace cwsp
             this->_unigram->InserWordAndIndex(word, index);
         }
 
-        fread(&bigramSize, sizeof(int), 1, FeatureFile);
-        for (int i=0; i<bigramSize; i++)
-        {
-            fread(&unit, sizeof(int), 1, FeatureFile);
-            char buf[UNIGRAM_LEN_MAX];
-            fread((void*)&buf, unit, 1, FeatureFile);
-            word = string(buf, unit);
-            fread(&index, sizeof(int), 1, FeatureFile);
-            this->_bigram->InserWordAndIndex(word, index);
-        }
-
-        fread(&trigramSize, sizeof(int), 1, FeatureFile);
-        for (int i=0; i<trigramSize; i++)
-        {
-            fread(&unit, sizeof(int), 1, FeatureFile);
-            char buf[UNIGRAM_LEN_MAX];
-            fread((void*)&buf, unit, 1, FeatureFile);
-            word = string(buf, unit);
-            fread(&index, sizeof(int), 1, FeatureFile);
-            this->_trigram->InserWordAndIndex(word, index);
-        }
-
-        fread(&dictSize, sizeof(int), 1, FeatureFile);
-        for (int i=0; i<dictSize; i++)
-        {
-            fread(&unit, sizeof(int), 1, FeatureFile);
-            char buf[UNIGRAM_LEN_MAX];
-            fread((void*)&buf, unit, 1, FeatureFile);
-            word = string(buf, unit);
-            fread(&index, sizeof(int), 1, FeatureFile);
-            this->_dict->InserWordAndIndex(word, index);
-        }
         fclose(FeatureFile);
         return true;
     }
@@ -325,39 +194,122 @@ namespace cwsp
         fwrite(&unigramSize, sizeof(int), 1, bin_lm_file);
         this->_unigram->WriteVocabIndex(bin_lm_file);
 
-        int bigramSize = this->_bigram->size();
-        fwrite(&bigramSize, sizeof(int), 1, bin_lm_file);
-        this->_bigram->WriteVocabIndex(bin_lm_file);
-
-        int trigramSize = this->_trigram->size();
-        fwrite(&trigramSize, sizeof(int), 1, bin_lm_file);
-        this->_trigram->WriteVocabIndex(bin_lm_file);
-
-        int dictSize = this->_dict->size();
-        fwrite(&dictSize, sizeof(int), 1, bin_lm_file);
-        this->_dict->WriteVocabIndex(bin_lm_file);
-
         fclose(str_lm_file);
         fclose(bin_lm_file);
         return true;
     }
 
-    // vector<string> SegFeat::SplitString(string terms_str, string spliting_tag)
-    // {
-    //     vector<string> feat_vec;
-    //     size_t term_beg_pos = 0;
-    //     size_t term_end_pos = 0;
-    //     while ((term_end_pos = terms_str.find_first_of(spliting_tag, term_beg_pos)) != string::npos) {
-    //         if (term_end_pos > term_beg_pos) {
-    //             string term_str = terms_str.substr(term_beg_pos, term_end_pos - term_beg_pos);
-    //             feat_vec.push_back(term_str);
-    //         }
-    //         term_beg_pos = term_end_pos + 1;
-    //     }
-    //     if (term_beg_pos < terms_str.size()) {
-    //         string end_str = terms_str.substr(term_beg_pos);
-    //         feat_vec.push_back(end_str);
-    //     }
-    //     return feat_vec;
-    // }
+    void SegFeat::GenerateFeats(vector<string> charVec, vector<vector<int> > &featsVec){
+        featsVec.clear();
+        for (size_t i = 2; i<charVec.size()-2;i++) {
+            vector<int> feat;
+            string feature;
+
+            // Pu(0) 0
+            // feature = toString(_char_type->GetPuncType(charVec.at(i)));
+            // feat.push_back(feature);
+            if (_char_type->GetPuncType(charVec.at(i))){
+                feat.push_back(0);
+            }
+
+            /* type features */
+            //T(-1)T(0)T(1) 1
+            int index;
+            index = 1 + _char_type->GetCharType(charVec.at(i-1));
+            index += 6 * _char_type->GetCharType(charVec.at(i));
+            index += 36 * _char_type->GetCharType(charVec.at(i+1));
+            feat.push_back(index);
+
+            //N(-1)N(0)N(1) 2
+            index = 1 + _char_type->GetCNameType(charVec.at(i-1));
+            index += 6 * _char_type->GetCNameType(charVec.at(i));
+            index += 36 * _char_type->GetCNameType(charVec.at(i+1));
+            feat.push_back(index);
+
+            //F(-1)F(0)F(1) 3
+            index = 1 + _char_type->GetFNameType(charVec.at(i-1));
+            index += 2 * _char_type->GetFNameType(charVec.at(i));
+            index += 4 * _char_type->GetFNameType(charVec.at(i+1));
+            feat.push_back(index);
+
+            // C-2 4
+            feature = "U00:" + charVec.at(i-2);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C-1 5
+            feature = "U01:" + charVec.at(i-1);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C0 6
+            feature = "U02:" + charVec.at(i);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C1 7
+            feature = "U03:" + charVec.at(i+1);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C2 8
+            feature = "U04:" + charVec.at(i+2);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+
+            // C-2C-1 9
+            feature = "B00:" + charVec.at(i-2) + charVec.at(i-1);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C-1C0 10
+            feature = "B01:" + charVec.at(i-1) + charVec.at(i);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C0C1 11
+            feature = "B02:" + charVec.at(i) + charVec.at(i+1);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C1C2 12
+            feature = "B03:" + charVec.at(i+1) + charVec.at(i+2);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+
+            // C-1C1 13
+            feature = "T00:" + charVec.at(i-1) + charVec.at(i+1);
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+
+            /* dict features */
+            //get MWL, t0
+            pair<int, string> ans = _dict->GetDictInfo(charVec.at(i).c_str());
+            // MWL+t0 14
+            feature = "MWL:" + toString(ans.first) + ans.second;
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C-1+t0 15
+            feature = "C00:" + charVec.at(i-1) + ans.second;
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C0+t0 16
+            feature = "C01:" + charVec.at(i) + ans.second;
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+            // C1+t0 17
+            feature = "C02:" + charVec.at(i+1) + ans.second;
+            index = GetUnigramIndex(feature.c_str());
+            index += TYPE_FEAT_SIZE + CNAME_FEAT_SIZE + FNAME_FEAT_SIZE;
+            feat.push_back(index);
+
+            featsVec.push_back(feat);
+        }
+    }
 }
