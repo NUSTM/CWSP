@@ -11,14 +11,17 @@
 *********************************************************************/
 #include "Segmentor.h"
 
+NUSTM_CWSP* NUSTM_CWSP::Create()
+{
+    return new cwsp::Segmentor();
+}
+
 namespace cwsp
 {
     Segmentor::Segmentor()
     {
         _features = new SegFeat;
         _probs = new SegProb;
-        _dict = new SegDict;
-        _char_type = new CharType;
         _mp = new MultiPerceptron;
     }
 
@@ -26,8 +29,6 @@ namespace cwsp
     {
         delete _features;
         delete _probs;
-        delete _dict;
-        delete _char_type;
         delete _mp;
     }
 
@@ -36,11 +37,11 @@ namespace cwsp
 #ifdef WIN32
         string _datapath = "model\\";
 #else
-        string _datapath = "model";
+        string _datapath = "model/";
 #endif
         bool is_char_bin = false;
         string dictfile = _datapath + "Dict";
-        string featfile = _datapath + "Feature";
+        string featfile = _datapath + "Feat";
         string probfile = _datapath + "Prob";
         string mpfile = _datapath + "Model";
         return Initialize(is_char_bin, dictfile, featfile, probfile, mpfile);
@@ -48,21 +49,23 @@ namespace cwsp
 
     bool Segmentor::Initialize(bool is_char_bin, string dictfile, string &featfile, string &probfile, string &mpfile)
     {
-        if(!_char_type->Initialize(is_char_bin))
+        if(!_features->LoadCharFile(is_char_bin))
         {
             cerr << "\nSegmentor ERROR" << endl;
             cerr << "Initialization failed!";
             cerr << "Can not initialize the CharType."<<endl;
             return false;
         }
+        std::cout<<"Loading CharType finished." <<endl;
 
-        if(!_dict->LoadDictFile(dictfile.c_str()))
+        if(!_features->LoadDictFile(dictfile.c_str()))
         {
             cerr << "\nSegmentor ERROR" << endl;
             cerr << "Initialization failed!";
             cerr << "Can not initialize the SegDict."<<endl;
             return false;
         }
+        std::cout<<"Loading SegDict finished." <<endl;
 
         if(!_features->LoadFeatureFile(featfile.c_str()))
         {
@@ -71,6 +74,8 @@ namespace cwsp
             cerr << "Can not initialize the SegFeat."<<endl;
             return false;
         }
+        _features->SetModifiable(false);
+        std::cout<<"Loading SegFeat finished." <<endl;
 
         if(!_probs->LoadProbFile(probfile.c_str()))
         {
@@ -79,6 +84,7 @@ namespace cwsp
             cerr << "Can not initialize the SegProb."<<endl;
             return false;
         }
+        std::cout<<"Loading SegProb finished." <<endl;
 
         if(!_mp->read_model(mpfile))
         {
@@ -136,7 +142,7 @@ namespace cwsp
         return;
     }
 
-    void Segmentor::SegFile(string inputfile, string outputfile)
+    void Segmentor::SegFile(const char * inputfile, const char * outputfile)
     {
         if (!is_initial)
         {
@@ -149,7 +155,7 @@ namespace cwsp
         begin = clock();
 
         ifstream fin;
-        fin.open(inputfile.c_str());
+        fin.open(inputfile);
         if (!fin.is_open())
         {
             cerr << "\nSegmentor ERROR" << endl;
@@ -160,7 +166,7 @@ namespace cwsp
         else
         {
             ofstream fout;
-            fout.open(outputfile.c_str());
+            fout.open(outputfile);
             string myTextLine;
             getline(fin, myTextLine); // Skip the first line
             getline(fin, myTextLine); // Read the number of sentences
@@ -181,7 +187,7 @@ namespace cwsp
                 ReadSentence(fin, charVec);
                 string outputSen;
                 SegSentence(charVec, outputSen);
-                TrimLine(outputSen);
+                // TrimLine(outputSen);
                 fout << outputSen << endl;
             }
             fout.close();
@@ -196,18 +202,15 @@ namespace cwsp
 
     void Segmentor::SegSentence(vector<string> myCharVec, string & outputSen)
     {
-        // vector<string> myCharVec;
-        // SplitLine(inputSen, myCharVec);
-        vector<vector<string> > myFeats;
-        GenerateFeats(myCharVec, myFeats);
-        vector<vector<string> > myFeatsVec;
-        Feature2vec(myFeats, myFeatsVec);
+        vector<vector<int> > myFeatsVec;
+        _features->GenerateFeats(myCharVec, myFeatsVec);
         vector<string> myTagVec;
         Viterbi(myFeatsVec, myTagVec);
         Tag2Word(myCharVec, myTagVec, outputSen);
+        TrimLine(outputSen);
     }
 
-    void Segmentor::Viterbi(vector<vector<string> > &myFeatsVec, vector<string> &tagVec)
+    void Segmentor::Viterbi(vector<vector<int> > &myFeatsVec, vector<string> &tagVec)
     {
         size_t n = myFeatsVec.size();
         vector<vector<double> > toward;
@@ -286,190 +289,7 @@ namespace cwsp
         return;
     }
 
-    // void Segmentor::SplitLine(string &line, vector<string> &charVec)
-    // {
-    //     charVec.clear();
-
-    //     charVec.push_back("B_1");
-    //     charVec.push_back("B_0");
-
-    //     for(size_t i=0; i<line.length();)
-    //     {
-    //         string character = line.substr(i, 1);
-    //         if (character.at(0)<0)
-    //         {
-    //             character = line.substr(i, 2);
-    //             if (character == "·")
-    //             {
-    //                 i += 2;
-    //             }
-    //             else
-    //             {
-    //                 character = line.substr(i, 3);
-    //                 i += 3;
-    //             }
-    //         }
-    //         else
-    //         {
-    //             i++;
-    //         }
-    //         charVec.push_back(character);
-    //     }
-
-    //     charVec.push_back("E_0");
-    //     charVec.push_back("E_1");
-    //     return;
-    // }
-
-    void Segmentor::GenerateFeats(vector<string> charVec, vector<vector<string> > &featsVec)
-    {
-        featsVec.clear();
-        for (size_t i = 2; i<charVec.size()-2;i++)
-        {
-            vector<string> feat;
-            string feature;
-
-            // Pu(0) 0
-            feature = toString(_char_type->GetPuncType(charVec.at(i)));
-            feat.push_back(feature);
-
-            // C-2 1
-            feature = charVec.at(i-2);
-            feat.push_back(feature);
-            // C-1 2
-            feature = charVec.at(i-1);
-            feat.push_back(feature);
-            // C0 3
-            feature = charVec.at(i);
-            feat.push_back(feature);
-            // C1 4
-            feature = charVec.at(i+1);
-            feat.push_back(feature);
-            // C2 5
-            feature = charVec.at(i+2);
-            feat.push_back(feature);
-
-            // C-2C-1 6
-            feature = charVec.at(i-2) + charVec.at(i-1);
-            feat.push_back(feature);
-            // C-1C0 7
-            feature = charVec.at(i-1) + charVec.at(i);
-            feat.push_back(feature);
-            // C0C1 8
-            feature = charVec.at(i) + charVec.at(i+1);
-            feat.push_back(feature);
-            // C1C2 9
-            feature = charVec.at(i+1) + charVec.at(i+2);
-            feat.push_back(feature);
-
-            // C-1C1 10
-            feature = charVec.at(i-1) + charVec.at(i+1);
-            feat.push_back(feature);
-
-            /* dict features */
-            //get MWL, t0
-            pair<int, string> ans = _dict->GetDictInfo(charVec.at(i).c_str());
-            // MWL+t0 11
-            feature = toString(ans.first) + ans.second;
-            feat.push_back(feature);
-            // C-1+t0 12
-            feature = charVec.at(i-1) + ans.second;
-            feat.push_back(feature);
-            // C0+t0 13
-            feature = charVec.at(i) + ans.second;
-            feat.push_back(feature);
-            // C1+t0 14
-            feature = charVec.at(i+1) + ans.second;
-            feat.push_back(feature);
-
-            /* type features */
-            //T(-1)T(0)T(1) 15
-            int index;
-            index = 1 + _char_type->GetCharType(charVec.at(i-1));
-            index += 6 * _char_type->GetCharType(charVec.at(i));
-            index += 36 * _char_type->GetCharType(charVec.at(i+1));
-            feat.push_back(toString(index));
-
-            //N(-1)N(0)N(1) 16
-            index = 1 + _char_type->GetCNameType(charVec.at(i-1));
-            index += 6 * _char_type->GetCNameType(charVec.at(i));
-            index += 36 * _char_type->GetCNameType(charVec.at(i+1));
-            feat.push_back(toString(index));
-
-            //F(-1)F(0)F(1) 17
-            index = 1 + _char_type->GetFNameType(charVec.at(i-1));
-            index += 2 * _char_type->GetFNameType(charVec.at(i));
-            index += 4 * _char_type->GetFNameType(charVec.at(i+1));
-            feat.push_back(toString(index));
-
-            featsVec.push_back(feat);
-        }
-    }
-
-    void Segmentor::Feature2vec(vector<vector<string> > feats, vector<vector<string> > &featsVec)
-    {
-        int unigramlen = _features->UnigramLen();
-        int bigramlen = _features->BigramLen();
-        int trigramlen = _features->TrigramLen();
-        int dictlen = _features->DictFeatLen();
-        for(size_t i=0; i<feats.size();i++)
-        {
-            vector<string> featVec;
-            if (feats.at(i).at(0) == "1")
-            {
-                featVec.push_back("0:1.0");
-            }
-            for(size_t j=1;j<feats.at(i).size();j++)
-            {
-                if (j<6)
-                {
-                    int index = _features->GetUnigramIndex(feats.at(i).at(j).c_str());
-                    index += (j-1)*unigramlen;
-                    featVec.push_back(toString(index) + ":1.0");
-                }
-                else if (j < 10)
-                {
-                    int index = _features->GetBigramIndex(feats.at(i).at(j).c_str());
-                    index += 5 * unigramlen + (j-6) * bigramlen;
-                    featVec.push_back(toString(index) + ":1.0");
-                }
-                else if (j < 11)
-                {
-                    int index = _features->GetTrigramIndex(feats.at(i).at(j).c_str());
-                    index += 5 * unigramlen + 4 * bigramlen;
-                    featVec.push_back(toString(index) + ":1.0");
-                }
-                else if (j < 15)
-                {
-                    int index = _features->GetDictIndex(feats.at(i).at(j).c_str());
-                    index += 5 *unigramlen + 4*bigramlen + trigramlen + (j-11)*dictlen;
-                    featVec.push_back(toString(index) + ":1.0");
-                }
-                else if (j==15)
-                {
-                    int index = fromString<int>(feats.at(i).at(j));
-                    index += 5*unigramlen + 4*bigramlen + trigramlen + 4*dictlen;
-                    featVec.push_back(toString(index) + ":1.0");
-                }
-                else if (j==16)
-                {
-                    int index = fromString<int>(feats.at(i).at(j));
-                    index += 5*unigramlen + 4*bigramlen + trigramlen + 4*dictlen + TYPE_FEAT_SIZE;
-                    featVec.push_back(toString(index) + ":1.0");
-                }
-                else if (j==17)
-                {
-                    int index = fromString<int>(feats.at(i).at(j));
-                    index += 5*unigramlen + 4*bigramlen + trigramlen + 4*dictlen + TYPE_FEAT_SIZE + CNAME_FEAT_SIZE;
-                    featVec.push_back(toString(index) + ":1.0");
-                }
-            }
-            featsVec.push_back(featVec);
-        }
-        return ;
-    }
-
-    void Segmentor::GetEmitProb(vector<vector<string> > featsVec, vector<vector<double> > &emit_prob)
+    void Segmentor::GetEmitProb(vector<vector<int> > featsVec, vector<vector<double> > &emit_prob)
     {
         _mp->classify_samps_withprb(featsVec, emit_prob);
     }

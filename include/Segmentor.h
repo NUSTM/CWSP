@@ -20,37 +20,30 @@
 #include "SegProb.h"
 #include "SegDict.h"
 #include "MultiPerceptron.h"
+#include "NUSTM_CWSP.h"
 
 namespace cwsp
 {
-    class Segmentor
+    class Segmentor: public NUSTM_CWSP
     {
     public:
         Segmentor();
         ~Segmentor();
         bool Initialize(bool is_char_bin, string dictfile, string &featfile, string &probfile, string &mpfile);
         bool Initialize();
-        // void SegSentence(string & inputSen, string & outputSen);
         void SegSentence(vector<string> myCharVec, string & outputSen);
-        void SegFile(string inputfile, string outputfile);
-        // void SetAlpha(double & myAlpha);
+        void SegFile(const char * inputfile, const char * outputfile);
     private:
-        // bool CheckMerge(deque<int> & x, deque<int> & y);
-        // bool CheckEqual(deque<int> & x, deque<int> & y);
-        // void RenewLattice(vector<string> & charSeq);
-        // void SplitLine(string &line, vector<string> &charVec);
         void ReadSentence(ifstream &fin, vector<string> &charVec);
         void GenerateFeats(vector<string> charVec, vector<vector<string> > &featsVec);
         void Feature2vec(vector<vector<string> > feats, vector<vector<string> > &featsVec);
-        void GetEmitProb(vector<vector<string> > featsVec, vector<vector<double> > &emit_prob);
-        void Viterbi(vector<vector<string> > &myFeatsVec, vector<string> &tagVec);
+        void GetEmitProb(vector<vector<int> > featsVec, vector<vector<double> > &emit_prob);
+        void Viterbi(vector<vector<int> > &myFeatsVec, vector<string> &tagVec);
         void Tag2Word(vector<string> charVec, vector<string> tagVec, string &line);
         string GetTag(int index);
     private:
         SegFeat *_features;
         SegProb *_probs;
-        SegDict *_dict;
-        CharType *_char_type;
         MultiPerceptron *_mp;
 
         bool is_initial;
