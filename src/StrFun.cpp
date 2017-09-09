@@ -16,8 +16,8 @@ namespace cwsp
 {
     void TrimLine(string & line)
     {
-        line.erase(0,line.find_first_not_of(" \t\r\n"));
-        line.erase(line.find_last_not_of(" \t\r\n")+1); 
+        line.erase(0,line.find_first_not_of("\t\r\n"));
+        line.erase(line.find_last_not_of("\t\r\n")+1); 
     }
 
     vector<string> string_split(string terms_str, string spliting_tag)
