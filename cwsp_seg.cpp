@@ -105,7 +105,7 @@ int cwsp_seg(int argc, char *argv[])
         exit(0);
     }
 
-    t.SegFile(corpus_file, seged_file);
+    t.SegFile(corpus_file.c_str(), seged_file.c_str());
     return 1;
 }
 

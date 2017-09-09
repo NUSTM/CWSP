@@ -38,7 +38,7 @@ using namespace std;
 namespace cwsp
 {
     const string g_copyright = "\ncwsp: Chinese Word Segmentation Toolkit used multi-perceptron.\nCopyright (C) 2016.";
-    const string g_version = "\nVersion: 1.1.0, Last update: 2016-10-18\n";
+    const string g_version = "\nVersion: 1.2.1, Last update: 2017-08-15\n";
 
     const string g_Model_Header = "#bin,model";
     const int g_Header_Len = (int)g_Model_Header.length();
