@@ -28,38 +28,38 @@ namespace cwsp
 {
     struct feature
     {
-	   vector<int> id_vec;					//index
-	   vector<float> value_vec;			//value
+       vector<int> id_vec;                 //index
+       vector<float> value_vec;            //value
     };
 
     class MultiPerceptron
     {
     public:
-    	MultiPerceptron();
+        MultiPerceptron();
         ~MultiPerceptron();
-    	bool save_model(string model_file);
+        bool save_model(string model_file);
         bool save_bin_model(string model_file);
         bool read_model(string model_file);
-	    bool load_training_file(string training_file);
-        bool load_training_data(vector<feature> feat_vec, vector<int> class_vec);
-    	void init_omega();
-	
+        bool load_training_file(string training_file);
+        bool load_training_data(int feat_size, int class_size, vector<feature> feat_vec, vector<int> class_vec);
+        void init_omega();
+    
         int train_SGD(size_t max_loop, double loss_thrd, float learn_rate, int avg);
         int train_batch(int max_loop, double loss_thrd, float learn_rate, int avg);
-	    vector<float> calc_score(feature &samp_feat);
-	    vector<float> score_to_prb(vector<float> &score);
+        vector<float> calc_score(feature &samp_feat);
+        vector<float> score_to_prb(vector<float> &score);
         int score_to_class(vector<float> &score);
         float classify_testing_file(string testing_file, string output_file, int output_format);
-        bool classify_samps_withprb(vector<vector<string> >featsVec, vector<vector<double> > &probs);
+        bool classify_samps_withprb(vector<vector<int> >featsVec, vector<vector<double> > &probs);
         bool ConvertToBinaryFile(string InputFileName, string OutputFileName);
     private:
         bool load_bin_model(string model_file);
         bool load_model(string model_file);
         bool read_samp_file(string samp_file, vector<feature> &samp_feat_vec, vector<int> &samp_class_vec);
-        bool read_samps_vec(vector<vector<string> >featsVec, vector<feature> &samp_feat_vec);
+        bool read_samps_vec(vector<vector<int> >featsVec, vector<feature> &samp_feat_vec);
         void update_omega(int samp_class, feature &samp_feat, float learn_rate);
         void calc_loss(double *loss, float *acc);
-        float calc_acc(vector<int> &test_class_vec, vector<int> &pred_class_vec);	
+        float calc_acc(vector<int> &test_class_vec, vector<int> &pred_class_vec);    
         float sigmoid(float x);
         vector<string> string_split(string terms_str, string spliting_tag);
     private:
